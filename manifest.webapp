@@ -1,0 +1,14 @@
+{
+    "version": "1.0.0",
+    "name": "MetroParis",
+    "description": "Paris metro with pathfinding",
+    "launch_path": "/index.html",
+    "developer": {
+        "name" : "Policonickolu, vgbadie, ant-yas"
+    },
+    "installs_allowed_from": ["*"],
+    "icons": {
+        "60": "/icon-60.png",
+        "128": "/icon-128.png"
+    }
+}

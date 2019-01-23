@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="fr">
+	<head>
+		<meta charset="utf-8">
+
+		<!-- VIEWPORT POUR MOBILE -->
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+
+		<title>MetroParis</title>
+
+		<link rel="stylesheet" type="text/css" href="css/style.css" />
+		<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css" />
+
+	</head>
+	<body onload="setTimeout(loaded(),3000)">
+
+		<!-- LA CARTE -->
+		<div id="map" class="page">
+			<div id="scroller">
+				<div>
+					<svg id="svg" viewBox="0 0 4600 4600">
+						<g>
+						</g>
+					</svg>
+				</div>
+			</div>
+			
+		</div>
+
+		<div style="display: none">
+		    <svg viewBox="0 0 1000 1000" version="1.1">
+		       <defs>
+		           <g id="circleblanc">
+		               <circle cx="0" cy="0" stroke="black" stroke-width="1" fill="white" />
+		           </g>
+		           <g id="circlecouleur">
+		               <circle cx="0" cy="0" />
+		           </g>
+		       </defs>
+		  </svg>
+		</div>
+
+		<!-- LE MENU -->
+		<div id="menu">
+			<div>
+			<div class="well">
+				<legend>Itinéraire</legend>
+		        <input id="depart" class="form-control" placeholder="Départ"/><br>
+				<select id="listeDepart" class="form-control" style="display:none;"></select><br>
+
+				<input id="arrive" class="form-control" placeholder="Destination"/><br>
+				<select id="listeArrive" class="form-control" style="display:none;"></select><br>
+
+				<input id="btn-calcul" class="btn btn-primary" type="submit" value="Calculer"/>
+				<input id="btn-reset" class="btn btn-default" type="reset" value="Annuler"/>
+
+				<datalist id="stations">
+				</datalist>
+
+				<br><br>
+				
+				
+
+				<table id="itineraire" class="table table-curved">
+				  
+				</table>
+
+			</div>
+			</div>
+		</div>
+
+		<!-- LES SCRIPTS -->
+		<script type="text/javascript" src="js/jquery-2.1.0.min.js"></script>
+		<script type="text/javascript" src="js/jquery.transit.js" ></script>
+
+		<script type="text/javascript" src="js/hammer.js"></script>
+		<script type="text/javascript" src="js/jquery.hammer.js"></script>
+
+		<script type="text/javascript" src="js/iscroll-zoom.js"></script>
+
+		<script type="text/javascript" src="js/swipe-menu.js"></script>
+
+		<script type="text/javascript" src="js/graph.js"></script>
+		<script type="text/javascript" src="js/metroparis.js"></script>
+		<script type="text/javascript" src="js/itineraire.js"></script>
+
+		<script type="text/javascript" src="js/bootstrap.min.js"></script>	
+		<script type="text/javascript">
+
+			// PLACEMENT DES LIGNES
+
+			str = "";
+			for(var i in listeLignes){
+				stations = listeLignes[i].stations;
+				for(var j in stations){
+					obj = stations[j];
+					str += (j==0?"":",") + obj.position[0] + "," + obj.position[1];
+				}
+				$('#svg > g').append('<polyline class="ligne" points="' + str + '" style="stroke:' + listeLignes[i].couleur + ';" />');
+				str = "";
+			}
+
+			// PLACEMENT DES STATIONS
+
+			for(var i in listeStations){
+				station = listeStations[i];
+				x = station.position[0];
+				y = station.position[1];
+				xt = station.position[2];
+				yt = station.position[3];
+				id = station.identifiant.split("/")[0];
+				$arg = $('#' + id);
+				$map = $('#svg > g');
+				if($arg.length == 0){
+					$map.append('<circle id="' + id + '" cx="' + x + '" cy="' + y + '" r="8" fill="' + station.ligne.couleur + '" /><text x="' + (x + xt) + '" y="' + (y + yt) +'" >' + station.nom + '</text>');
+				}else if($arg.attr('fill') != station.ligne.couleur){
+					$arg.remove();
+					$map.append('<circle id="' + id + '" cx="' + x + '" cy="' + y + '" r="10" stroke="black" stroke-width="1" fill="white" />');
+				}
+			}
+
+			// SCRIPT QUI LORSQU'ON CLIQUE SUR LES LIENS <a> CELA PERMET UNE INTERACTION 
+
+
+				$("#svg > g a").click(function(){
+					nom = $(this).children().first().attr('id');
+					obj = idToObject(nom);
+					dep = $("#depart").val();
+					console.log(obj.nom);
+					if(dep.length > 0){
+						$("#arrive").val(obj.nom);
+					}else{
+						$("#depart").val(obj.nom);
+					}
+				})
+
+
+			//
+
+
+			// REFRESH AFFICHAGE
+			$("#map").html($("#map").html());
+
+
+			// LISTE DES STATIONS DU FORMULAIRE
+			for(var i in listeStations){
+				if($('#stations > option[value="' + listeStations[i].nom + '"]').length == 0){
+					$('#stations').append('<option value="'+ listeStations[i].nom + '">');
+				}
+			}
+
+			// SUGGESTION DES INPUTS
+			
+
+			function suggestion(cible, liste){
+				$liste = liste;
+				val = cible.val();
+
+				var str = [];
+				if(val.length > 0){
+					var stations = rechercheStations(val);
+
+					for(i in stations){
+						station = stations[i].nom.toLowerCase();
+						if(str.indexOf('<option value="'+ stations[i].nom + '">' + stations[i].nom + '</option>') == -1){
+
+							str.push('<option value="'+ stations[i].nom + '">' + stations[i].nom + '</option>');
+
+						}
+					}
+				}				
+
+				if(str.length > 0){
+					$liste.empty();
+					for(i in str){
+						$liste.append(str[i]);
+					}
+					$liste.css('display', 'block');
+				}else{
+					$liste.empty();
+					$liste.css('display', 'none');
+				}
+				setTimeout(function () {
+				        mapscroll.refresh();
+				        menuscroll.refresh();
+				}, 0);
+				
+			}
+
+			function selection(cible, liste){
+				cible.val(liste.val());
+				liste.css('display', 'none');
+			}
+
+			depart = $('#depart');
+			arrive = $('#arrive');
+			listeD = $('#listeDepart');
+			listeA = $('#listeArrive');
+			depart.keyup(function(){ suggestion($(this),listeD) });
+			arrive.keyup(function(){ suggestion($(this),listeA) });
+			listeD.change(function(){ selection(depart,$(this))});
+			listeA.change(function(){ selection(arrive,$(this)) });
+
+
+			// BOUTON DE CALCUL D'ITINERAIRE
+
+			$('#btn-calcul').click(function calcul(){
+				var depart = $('#depart').val() + "";
+				var arrive = $('#arrive').val() + "";
+
+				var reponse = itineraire(depart,arrive);
+				if(reponse.length > 0){
+					var res = reponse[0];
+					var trace = reponse[1];
+
+					var str = "<thead><tr><th>Itinéraire</th></tr></thead><tbody>";
+
+					var departObj = stringToObject(depart);
+					var arriveObj = stringToObject(arrive);
+					var str2 = departObj.position[0] + ", " + departObj.position[1];
+
+					for(var i = 0; i < res.length; i++){
+
+						str += "<tr><td>Prendre la ligne " + res[i][0] + (res[i][1]!=res[i][2] ? " vers " + res[i][1] + ",":"") + " jusqu'à " + res[i][2].nom +".</td></tr></tbody>";
+
+					}
+					str += "</ul>";
+					$('#itineraire').html(str);
+					$('#depart').val(departObj.nom);
+					$('#arrive').val(arriveObj.nom);
+
+					var str2 = "";
+					for(var i in trace){
+						obj = trace[i][0];
+						str2 += (i==0?"":",") + obj.position[0] + "," + obj.position[1];
+					}
+					trace = $("#trace");
+					if(trace.length>0) trace.remove();
+					$('#svg > g').append('<polyline id="trace" points="' + str2 + '" style="fill:none;stroke:black;stroke-width:5 ;stroke-dashoffset:20;" />');
+					
+					$("#map").html($("#map").html());
+					loaded();
+					setTimeout(function () {
+				        mapscroll.refresh();
+				        menuscroll.refresh();
+				    }, 0);
+					mapscroll.scrollTo(departObj.position[0], departObj.position[1]);
+				}
+			})
+
+
+			// BOUTON DE RESET DE L'ITINERAIRE
+
+			$('#btn-reset').click(function reset(){
+				$('#depart').val("");
+				$('#arrive').val("");
+				$("#itineraire").html("");
+				trace = $("#trace");
+				if(trace.length>0) trace.remove();
+				$('#listeDepart').css('display', 'none');
+				$('#listeArrive').css('display', 'none');
+				$("#map").html($("#map").html());
+				loaded();
+				setTimeout(function () {
+				        mapscroll.refresh();
+				        menuscroll.refresh();
+				}, 0);
+			})
+
+			// SCROLLING ET ZOOM
+
+			var mapscroll;
+			var menuscroll;
+			function loaded() {
+			    mapscroll = new IScroll('#map',{
+				    freeScroll: true,
+				    scrollX: true,
+				    zoom: true,
+				    zoomMax: 10,
+				    zoomMin: 0.3,
+				    zoomStart: 0.5,
+				    useTransition: true,
+				    useTransform: true,
+					HWCompositing: true,
+					bounce: false,
+				});
+				
+			}
+			menuscroll = new IScroll('#menu');
+
+			document.addEventListener('touchmove', function (e) { e.preventDefault(); }, false);
+	
+
+		</script>
+	</body>
+</html>
